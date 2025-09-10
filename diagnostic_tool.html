@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диагностика панорамного вьюера</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a202c;
+            color: #e2e8f0;
+        }
+        .container {
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            background: #4a5568;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .result {
+            background: #2c7a7b;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #c53030;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .warning {
+            background: #d69e2e;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #3182ce;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2c5282;
+        }
+        input, select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #718096;
+            background: #2d3748;
+            color: #e2e8f0;
+            margin: 5px;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #718096;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok {
+            background-color: #48bb78;
+        }
+        .status-error {
+            background-color: #f56565;
+        }
+        .status-warning {
+            background-color: #ed8936;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Диагностика панорамного вьюера</h1>
+        <p>Этот инструмент поможет выявить причину черного экрана панорам.</p>
+        
+        <div class="section">
+            <h2>1. Проверка системных требований</h2>
+            <button onclick="checkSystemRequirements()">Проверить</button>
+            <div id="system-requirements-result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>2. Проверка API</h2>
+            <button onclick="checkApiHealth()">Проверить здоровье API</button>
+            <div id="api-health-result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>3. Проверка панорам</h2>
+            <button onclick="listPanoramas()">Получить список панорам</button>
+            <div id="panoramas-list-result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>4. Тест загрузки изображения</h2>
+            <label for="panorama-id">ID панорамы:</label>
+            <input type="number" id="panorama-id" placeholder="Введите ID панорамы" value="1">
+            <button onclick="testImageLoading()">Тест загрузки изображения</button>
+            <div id="image-loading-result"></div>
+        </div>
+        
+        <div class="section">
+            <h2>5. Тест Three.js</h2>
+            <button onclick="testThreeJs()">Тест Three.js</button>
+            <div id="threejs-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Проверка системных требований
+        async function checkSystemRequirements() {
+            const resultDiv = document.getElementById('system-requirements-result');
+            resultDiv.innerHTML = '<p>Проверка...</p>';
+            
+            try {
+                // Проверка WebGL
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                const webglSupported = !!gl;
+                
+                // Проверка Fetch API
+                const fetchSupported = typeof fetch !== 'undefined';
+                
+                // Проверка Three.js (будет проверяться позже)
+                
+                let result = '✅ Системные требования:\n';
+                result += `WebGL: ${webglSupported ? '✅ Поддерживается' : '❌ Не поддерживается'}\n`;
+                result += `Fetch API: ${fetchSupported ? '✅ Поддерживается' : '❌ Не поддерживается'}\n`;
+                
+                if (webglSupported && fetchSupported) {
+                    resultDiv.innerHTML = `<div class="result">${result}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">${result}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Ошибка проверки: ${error.message}</div>`;
+            }
+        }
+        
+        // Проверка здоровья API
+        async function checkApiHealth() {
+            const resultDiv = document.getElementById('api-health-result');
+            resultDiv.innerHTML = '<p>Проверка...</p>';
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                let result = `Статус: ${response.status}\n`;
+                result += `Сообщение: ${data.message}\n`;
+                result += `Версия: ${data.version}\n`;
+                result += `Статистика: ${JSON.stringify(data.stats, null, 2)}\n`;
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result">${result}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">${result}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        // Получение списка панорам
+        async function listPanoramas() {
+            const resultDiv = document.getElementById('panoramas-list-result');
+            resultDiv.innerHTML = '<p>Получение списка...</p>';
+            
+            try {
+                const response = await fetch('/api/panoramas');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let result = `Найдено панорам: ${data.panoramas.length}\n\n`;
+                    
+                    data.panoramas.slice(0, 5).forEach((panorama, index) => {
+                        result += `Панорама ${index + 1}:\n`;
+                        result += `  ID: ${panorama.id}\n`;
+                        result += `  Название: ${panorama.title}\n`;
+                        result += `  Публичная: ${panorama.is_public}\n`;
+                        result += `  Истекла: ${panorama.is_expired}\n`;
+                        result += `  Просмотров: ${panorama.view_count}\n\n`;
+                    });
+                    
+                    resultDiv.innerHTML = `<div class="result">${result}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Ошибка: ${data.error || 'Неизвестная ошибка'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        // Тест загрузки изображения
+        async function testImageLoading() {
+            const panoramaId = document.getElementById('panorama-id').value;
+            const resultDiv = document.getElementById('image-loading-result');
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Пожалуйста, введите ID панорамы</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Проверка доступа к изображению...</p>';
+            
+            try {
+                // Метод 1: Проверка через HEAD запрос
+                const headResponse = await fetch(`/api/panoramas/${panoramaId}/image`, {
+                    method: 'HEAD',
+                    credentials: 'include'
+                });
+                
+                let result = `HEAD запрос:\n`;
+                result += `  Статус: ${headResponse.status}\n`;
+                result += `  Content-Type: ${headResponse.headers.get('Content-Type')}\n`;
+                result += `  Content-Length: ${headResponse.headers.get('Content-Length')}\n\n`;
+                
+                // Метод 2: Проверка через GET запрос
+                const getResponse = await fetch(`/api/panoramas/${panoramaId}/image`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                result += `GET запрос:\n`;
+                result += `  Статус: ${getResponse.status}\n`;
+                result += `  Content-Type: ${getResponse.headers.get('Content-Type')}\n`;
+                
+                if (getResponse.ok) {
+                    const blob = await getResponse.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    
+                    result += `\n✅ Изображение успешно загружено!\n`;
+                    result += `Размер: ${(blob.size / 1024).toFixed(2)} KB\n`;
+                    result += `Тип: ${blob.type}\n`;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result">${result}</div>
+                        <img src="${imageUrl}" style="max-height: 200px;" alt="Панорама">
+                    `;
+                } else {
+                    const errorText = await getResponse.text();
+                    result += `\n❌ Ошибка загрузки: ${errorText}\n`;
+                    resultDiv.innerHTML = `<div class="error">${result}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+        
+        // Тест Three.js
+        async function testThreeJs() {
+            const resultDiv = document.getElementById('threejs-result');
+            resultDiv.innerHTML = '<p>Проверка Three.js...</p>';
+            
+            try {
+                // Проверим, загружен ли Three.js
+                if (typeof THREE !== 'undefined') {
+                    // Создадим простую сцену для теста
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                    const renderer = new THREE.WebGLRenderer({ alpha: true });
+                    
+                    renderer.setSize(200, 200);
+                    renderer.setClearColor(0x000000, 0);
+                    
+                    const geometry = new THREE.BoxGeometry();
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                    const cube = new THREE.Mesh(geometry, material);
+                    scene.add(cube);
+                    
+                    camera.position.z = 5;
+                    renderer.render(scene, camera);
+                    
+                    // Очистка
+                    renderer.dispose();
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result">
+✅ Three.js работает корректно!
+                        </div>
+                        <div>
+                            <canvas width="200" height="200" style="border: 1px solid #718096;"></canvas>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+❌ Three.js не загружен!
+Пожалуйста, убедитесь, что Three.js подключен правильно.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Ошибка Three.js: ${error.message}</div>`;
+            }
+        }
+        
+        // Автоматический запуск проверки системных требований
+        window.addEventListener('load', () => {
+            setTimeout(checkSystemRequirements, 1000);
+        });
+    </script>
+    
+    <!-- Подключение Three.js для теста -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</body>
+</html>

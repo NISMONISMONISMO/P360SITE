@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест загрузки изображений панорам</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffe8e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            background: #e8fde9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Тест загрузки изображений панорам</h1>
+        <p>Этот инструмент поможет проверить, правильно ли загружаются изображения панорам.</p>
+        
+        <div>
+            <label>ID панорамы: <input type="number" id="panorama-id" value="1" min="1"></label>
+            <button onclick="testImageLoading()">Загрузить изображение</button>
+            <button onclick="testImageInfo()">Получить информацию</button>
+        </div>
+        
+        <div id="results"></div>
+        <div id="image-container"></div>
+    </div>
+
+    <script>
+        async function testImageInfo() {
+            const resultDiv = document.getElementById('results');
+            const imageContainer = document.getElementById('image-container');
+            const panoramaId = document.getElementById('panorama-id').value;
+            
+            resultDiv.innerHTML = '<div class="result">Получение информации...</div>';
+            imageContainer.innerHTML = '';
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Введите ID панорамы</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/panoramas/${panoramaId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Информация о панораме получена!</h3>
+                            <p><strong>ID:</strong> ${data.panorama.id}</p>
+                            <p><strong>Название:</strong> ${data.panorama.title}</p>
+                            <p><strong>Описание:</strong> ${data.panorama.description || 'Нет описания'}</p>
+                            <p><strong>Публичная:</strong> ${data.panorama.is_public ? 'Да' : 'Нет'}</p>
+                            <p><strong>Просмотров:</strong> ${data.panorama.view_count}</p>
+                            <p><strong>Размеры:</strong> ${data.panorama.width}x${data.panorama.height}</p>
+                            <p><strong>Дата загрузки:</strong> ${new Date(data.panorama.upload_date).toLocaleString()}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка получения информации</h3>
+                            <p>Статус: ${response.status} ${response.statusText}</p>
+                            <p>Ответ: ${JSON.stringify(data)}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка сети</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testImageLoading() {
+            const resultDiv = document.getElementById('results');
+            const imageContainer = document.getElementById('image-container');
+            const panoramaId = document.getElementById('panorama-id').value;
+            
+            resultDiv.innerHTML = '<div class="result">Загрузка изображения...</div>';
+            imageContainer.innerHTML = '';
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Введите ID панорамы</div>';
+                return;
+            }
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`/api/panoramas/${panoramaId}/image`);
+                const endTime = Date.now();
+                const loadTime = endTime - startTime;
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    const contentType = response.headers.get('content-type');
+                    const contentLength = response.headers.get('content-length');
+                    
+                    imageContainer.innerHTML = `
+                        <h3>Изображение панорамы:</h3>
+                        <img src="${imageUrl}" alt="Панорама ${panoramaId}" onload="URL.revokeObjectURL('${imageUrl}')">
+                    `;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Изображение загружено успешно!</h3>
+                            <p><strong>Тип контента:</strong> ${contentType || 'Не указан'}</p>
+                            <p><strong>Размер:</strong> ${contentLength ? Math.round(contentLength/1024) + ' KB' : 'Не указан'}</p>
+                            <p><strong>Время загрузки:</strong> ${loadTime} мс</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка загрузки изображения</h3>
+                            <p>Статус: ${response.status} ${response.statusText}</p>
+                            <p>URL: /api/panoramas/${panoramaId}/image</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка сети</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

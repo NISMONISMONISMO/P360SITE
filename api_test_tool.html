@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffe8e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            background: #e8fde9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .warning {
+            background: #fdf7e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .detailed-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Connection Test Tool</h1>
+        <p>Этот инструмент поможет диагностировать проблемы с подключением к API.</p>
+        
+        <div class="test-section">
+            <h2>1. Проверка базового подключения</h2>
+            <button onclick="testBasicConnection()">Проверить подключение к API</button>
+            <div id="basic-connection-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Проверка списка панорам</h2>
+            <button onclick="testPanoramaList()">Получить список панорам</button>
+            <div id="panorama-list-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. Тест загрузки конкретной панорамы</h2>
+            <label>ID панорамы: <input type="number" id="panorama-id" value="1" min="1"></label>
+            <button onclick="testPanoramaLoad()">Загрузить панораму</button>
+            <div id="panorama-load-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. Проверка CORS</h2>
+            <button onclick="testCORS()">Проверить CORS настройки</button>
+            <div id="cors-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. Расширенная диагностика</h2>
+            <button onclick="testAllEndpoints()">Полная проверка API</button>
+            <div id="extended-result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testBasicConnection() {
+            const resultDiv = document.getElementById('basic-connection-result');
+            resultDiv.innerHTML = '<div class="result">Проверка...</div>';
+            
+            try {
+                console.log('Testing basic connection to /api/health');
+                const response = await fetch('/api/health');
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Подключение успешно!</h3>
+                            <p><strong>Статус:</strong> ${data.status}</p>
+                            <p><strong>Время:</strong> ${data.timestamp}</p>
+                            <p><strong>База данных:</strong> ${data.database}</p>
+                            <p><strong>Папка загрузок:</strong> ${data.upload_folder}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка подключения</h3>
+                            <p>Статус: ${response.status} ${response.statusText}</p>
+                            <p>Ответ: ${JSON.stringify(data)}</p>
+                            <div class="detailed-info">
+                                URL: /api/health<br>
+                                Метод: GET
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Basic connection error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка сети</h3>
+                        <p>${error.message}</p>
+                        <p>Проверьте, запущен ли бэкенд на порту 5000</p>
+                        <div class="detailed-info">
+                            Ошибка: ${error.name}<br>
+                            URL: /api/health<br>
+                            Метод: GET
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testPanoramaList() {
+            const resultDiv = document.getElementById('panorama-list-result');
+            resultDiv.innerHTML = '<div class="result">Проверка...</div>';
+            
+            try {
+                console.log('Testing panoramas list endpoint');
+                const response = await fetch('/api/panoramas');
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Список панорам получен!</h3>
+                            <p><strong>Найдено панорам:</strong> ${data.panoramas ? data.panoramas.length : 0}</p>
+                            <p><strong>Страница:</strong> ${data.pagination?.page || 'N/A'}</p>
+                            <p><strong>Всего:</strong> ${data.pagination?.total || 'N/A'}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка получения списка</h3>
+                            <p>Статус: ${response.status} ${response.statusText}</p>
+                            <p>Ответ: ${JSON.stringify(data)}</p>
+                            <div class="detailed-info">
+                                URL: /api/panoramas<br>
+                                Метод: GET
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Panorama list error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка сети</h3>
+                        <p>${error.message}</p>
+                        <p>Проверьте, запущен ли бэкенд на порту 5000</p>
+                        <div class="detailed-info">
+                            Ошибка: ${error.name}<br>
+                            URL: /api/panoramas<br>
+                            Метод: GET
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testPanoramaLoad() {
+            const resultDiv = document.getElementById('panorama-load-result');
+            const panoramaId = document.getElementById('panorama-id').value;
+            resultDiv.innerHTML = '<div class="result">Проверка...</div>';
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Введите ID панорамы</div>';
+                return;
+            }
+            
+            try {
+                // First get panorama info
+                console.log(`Testing panorama info for ID: ${panoramaId}`);
+                const infoResponse = await fetch(`/api/panoramas/${panoramaId}`);
+                console.log('Info response status:', infoResponse.status);
+                const infoData = await infoResponse.json();
+                console.log('Info response data:', infoData);
+                
+                if (!infoResponse.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка получения информации о панораме</h3>
+                            <p>Статус: ${infoResponse.status} ${infoResponse.statusText}</p>
+                            <p>Ответ: ${JSON.stringify(infoData)}</p>
+                            <div class="detailed-info">
+                                URL: /api/panoramas/${panoramaId}<br>
+                                Метод: GET
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Then try to load image
+                console.log(`Testing image load for panorama ID: ${panoramaId}`);
+                const imageResponse = await fetch(`/api/panoramas/${panoramaId}/image`);
+                console.log('Image response status:', imageResponse.status);
+                
+                if (imageResponse.ok) {
+                    const contentType = imageResponse.headers.get('content-type');
+                    const contentLength = imageResponse.headers.get('content-length');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Панорама загружена успешно!</h3>
+                            <p><strong>ID:</strong> ${infoData.panorama.id}</p>
+                            <p><strong>Название:</strong> ${infoData.panorama.title}</p>
+                            <p><strong>Тип контента:</strong> ${contentType || 'Не указан'}</p>
+                            <p><strong>Размер:</strong> ${contentLength ? Math.round(contentLength/1024) + ' KB' : 'Не указан'}</p>
+                        </div>
+                    `;
+                } else {
+                    const errorText = await imageResponse.text();
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Ошибка загрузки изображения</h3>
+                            <p>Статус: ${imageResponse.status} ${imageResponse.statusText}</p>
+                            <p>Ответ: ${errorText || 'Нет данных'}</p>
+                            <div class="detailed-info">
+                                URL: /api/panoramas/${panoramaId}/image<br>
+                                Метод: GET
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Panorama load error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка сети</h3>
+                        <p>${error.message}</p>
+                        <p>Проверьте, запущен ли бэкенд на порту 5000</p>
+                        <div class="detailed-info">
+                            Ошибка: ${error.name}<br>
+                            URL: /api/panoramas/${panoramaId}/image<br>
+                            Метод: GET
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testCORS() {
+            const resultDiv = document.getElementById('cors-result');
+            resultDiv.innerHTML = '<div class="result">Проверка...</div>';
+            
+            try {
+                // Test a simple OPTIONS request to check CORS
+                console.log('Testing CORS with OPTIONS request');
+                const response = await fetch('/api/health', {
+                    method: 'OPTIONS'
+                });
+                console.log('CORS test response status:', response.status);
+                
+                const allowOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const allowHeaders = response.headers.get('Access-Control-Allow-Headers');
+                const allowMethods = response.headers.get('Access-Control-Allow-Methods');
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ CORS проверка завершена</h3>
+                        <p><strong>Allow-Origin:</strong> ${allowOrigin || 'Не указан'}</p>
+                        <p><strong>Allow-Headers:</strong> ${allowHeaders || 'Не указан'}</p>
+                        <p><strong>Allow-Methods:</strong> ${allowMethods || 'Не указан'}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('CORS test error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка CORS</h3>
+                        <p>${error.message}</p>
+                        <p>Проверьте настройки CORS в backend/config.py</p>
+                        <div class="detailed-info">
+                            Ошибка: ${error.name}<br>
+                            URL: /api/health<br>
+                            Метод: OPTIONS
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testAllEndpoints() {
+            const resultDiv = document.getElementById('extended-result');
+            resultDiv.innerHTML = '<div class="result">Проверка всех endpoints...</div>';
+            
+            try {
+                // Test main endpoint
+                const mainResponse = await fetch('/');
+                const mainData = await mainResponse.json();
+                
+                // Test health endpoint
+                const healthResponse = await fetch('/api/health');
+                const healthData = await healthResponse.json();
+                
+                // Test panoramas list
+                const listResponse = await fetch('/api/panoramas');
+                const listData = await listResponse.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Все endpoints работают!</h3>
+                        <p><strong>Главная страница:</strong> ${mainResponse.ok ? 'OK' : 'ERROR'}</p>
+                        <p><strong>Health check:</strong> ${healthResponse.ok ? 'OK' : 'ERROR'}</p>
+                        <p><strong>Панорамы:</strong> ${listResponse.ok ? 'OK' : 'ERROR'} (${listData.panoramas ? listData.panoramas.length : 0} найдено)</p>
+                        <p><strong>Версия API:</strong> ${mainData.version || 'Не указана'}</p>
+                        <p><strong>Статус сервера:</strong> ${mainData.status || 'Не указан'}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Extended test error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Ошибка расширенной диагностики</h3>
+                        <p>${error.message}</p>
+                        <div class="detailed-info">
+                            Ошибка: ${error.name}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Run basic connection test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testBasicConnection, 1000);
+        });
+    </script>
+</body>
+</html>

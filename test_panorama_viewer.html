@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Панорамного Вьюера</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            padding: 10px;
+            background: rgba(0,0,0,0.7);
+            text-align: center;
+        }
+        #viewer-container {
+            flex: 1;
+            width: 100%;
+            height: calc(100vh - 60px);
+        }
+        .controls {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2d3748;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Тест Панорамного Вьюера</h2>
+            <p>Проверка корректной работы Three.js панорамного вьюера</p>
+        </div>
+        <div id="viewer-container"></div>
+        <div class="controls">
+            <button id="zoomIn">Приблизить</button>
+            <button id="zoomOut">Отдалить</button>
+            <button id="reset">Сбросить</button>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let scene, camera, renderer, sphere;
+        let isUserInteracting = false;
+        let onPointerDownPointerX, onPointerDownPointerY;
+        let onPointerDownLon, onPointerDownLat;
+        let lon = 0, lat = 0;
+        let phi = 0, theta = 0;
+        let distance = 50;
+
+        // Инициализация
+        function init() {
+            const container = document.getElementById('viewer-container');
+            
+            // Создание сцены
+            scene = new THREE.Scene();
+            
+            // Создание камеры
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 1, 1000);
+            
+            // Создание рендерера
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // Создание сферы
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            geometry.scale(-1, 1, 1);
+            
+            // Создание тестовой текстуры
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Создание градиентного фона
+            const gradient = ctx.createLinearGradient(0, 0, 1024, 512);
+            gradient.addColorStop(0, '#1e3a8a');
+            gradient.addColorStop(0.5, '#3b82f6');
+            gradient.addColorStop(1, '#1e40af');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 1024, 512);
+            
+            // Добавление тестовых элементов
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Тестовая Панорама', 512, 100);
+            
+            // Добавление направлений
+            ctx.font = '30px Arial';
+            ctx.fillText('СЕВЕР', 512, 200);
+            ctx.fillText('ЮГ', 512, 450);
+            ctx.fillText('ЗАПАД', 150, 250);
+            ctx.fillText('ВОСТОК', 850, 250);
+            
+            // Добавление сетки
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= 1024; i += 100) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 512);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= 512; i += 100) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(1024, i);
+                ctx.stroke();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.MeshBasicMaterial({ map: texture });
+            
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            
+            // Обработчики событий
+            container.addEventListener('mousedown', onDocumentMouseDown, false);
+            container.addEventListener('mousemove', onDocumentMouseMove, false);
+            container.addEventListener('mouseup', onDocumentMouseUp, false);
+            container.addEventListener('wheel', onDocumentMouseWheel, false);
+            
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Обработчики кнопок
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                distance = Math.max(10, distance - 10);
+            });
+            
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                distance = Math.min(100, distance + 10);
+            });
+            
+            document.getElementById('reset').addEventListener('click', () => {
+                lon = 0;
+                lat = 0;
+                distance = 50;
+            });
+            
+            animate();
+        }
+        
+        // Обработчики событий мыши
+        function onDocumentMouseDown(event) {
+            event.preventDefault();
+            isUserInteracting = true;
+            onPointerDownPointerX = event.clientX;
+            onPointerDownPointerY = event.clientY;
+            onPointerDownLon = lon;
+            onPointerDownLat = lat;
+        }
+        
+        function onDocumentMouseMove(event) {
+            if (isUserInteracting === true) {
+                lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
+                lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
+            }
+        }
+        
+        function onDocumentMouseUp() {
+            isUserInteracting = false;
+        }
+        
+        function onDocumentMouseWheel(event) {
+            distance += event.deltaY * 0.05;
+            distance = THREE.MathUtils.clamp(distance, 10, 100);
+        }
+        
+        // Обработчик изменения размера окна
+        function onWindowResize() {
+            const container = document.getElementById('viewer-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+        
+        // Анимация
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+        }
+        
+        function update() {
+            lat = Math.max(-85, Math.min(85, lat));
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+            
+            camera.position.x = distance * Math.sin(phi) * Math.cos(theta);
+            camera.position.y = distance * Math.cos(phi);
+            camera.position.z = distance * Math.sin(phi) * Math.sin(theta);
+            
+            camera.lookAt(scene.position);
+            renderer.render(scene, camera);
+        }
+        
+        // Запуск при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест компонента панорамного вьюера</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        button {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2d3748;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="info">
+        <h3>Тест компонента панорамного вьюера</h3>
+        <p>Тест изолированного компонента вьюера</p>
+    </div>
+    
+    <div id="loading">
+        <p>Инициализация вьюера...</p>
+    </div>
+    
+    <div id="controls">
+        <button id="loadPanorama">Загрузить панораму</button>
+        <button id="resetView">Сбросить вид</button>
+    </div>
+    
+    <div id="container"></div>
+
+    <script>
+        // Глобальные переменные
+        let scene, camera, renderer, sphere;
+        let isUserInteracting = false;
+        let onPointerDownPointerX, onPointerDownPointerY;
+        let onPointerDownLon, onPointerDownLat;
+        let lon = 0, lat = 0;
+        let phi = 0, theta = 0;
+        let distance = 50;
+        let panoramaId = null;
+
+        // Инициализация
+        function init() {
+            const container = document.getElementById('container');
+            
+            // Создание сцены
+            scene = new THREE.Scene();
+            
+            // Создание камеры
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(0, 0, 0);
+            
+            // Создание рендерера
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 1);
+            container.appendChild(renderer.domElement);
+            
+            // Создание сферы
+            const geometry = new THREE.SphereGeometry(500, 64, 32);
+            geometry.scale(-1, 1, 1);
+            
+            // Создание материала без текстуры
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x333333,
+                side: THREE.BackSide,
+                wireframe: true
+            });
+            
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            
+            // Обработчики событий
+            container.addEventListener('mousedown', onDocumentMouseDown, false);
+            container.addEventListener('mousemove', onDocumentMouseMove, false);
+            container.addEventListener('mouseup', onDocumentMouseUp, false);
+            container.addEventListener('wheel', onDocumentMouseWheel, false);
+            
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Обработчики кнопок
+            document.getElementById('loadPanorama').addEventListener('click', loadPanorama);
+            document.getElementById('resetView').addEventListener('click', resetView);
+            
+            // Скрыть загрузку
+            document.getElementById('loading').style.display = 'none';
+            
+            animate();
+        }
+        
+        // Загрузка панорамы
+        async function loadPanorama() {
+            try {
+                document.getElementById('loading').innerHTML = '<p>Получение списка панорам...</p>';
+                document.getElementById('loading').style.display = 'block';
+                
+                // Получаем первую панораму
+                const response = await fetch('/api/panoramas');
+                const data = await response.json();
+                
+                if (data.panoramas && data.panoramas.length > 0) {
+                    panoramaId = data.panoramas[0].id;
+                    document.getElementById('loading').innerHTML = '<p>Загрузка изображения панорамы...</p>';
+                    
+                    // Загружаем текстуру
+                    const textureLoader = new THREE.TextureLoader();
+                    const imageUrl = `/api/panoramas/${panoramaId}/image`;
+                    
+                    textureLoader.load(
+                        imageUrl,
+                        (texture) => {
+                            // Применяем текстуру
+                            if (sphere) {
+                                const material = new THREE.MeshBasicMaterial({ 
+                                    map: texture,
+                                    side: THREE.BackSide
+                                });
+                                sphere.material.dispose();
+                                sphere.material = material;
+                            }
+                            
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('info').innerHTML += 
+                                `<p style="color: green;">✅ Панорама загружена (ID: ${panoramaId})</p>`;
+                        },
+                        undefined,
+                        (error) => {
+                            console.error('Ошибка загрузки текстуры:', error);
+                            document.getElementById('loading').innerHTML = 
+                                `<p style="color: red;">❌ Ошибка загрузки текстуры: ${error.message}</p>`;
+                        }
+                    );
+                } else {
+                    document.getElementById('loading').innerHTML = 
+                        '<p style="color: orange;">⚠️ Панорамы не найдены</p>';
+                    setTimeout(() => {
+                        document.getElementById('loading').style.display = 'none';
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки панорамы:', error);
+                document.getElementById('loading').innerHTML = 
+                    `<p style="color: red;">❌ Ошибка: ${error.message}</p>`;
+            }
+        }
+        
+        // Сброс вида
+        function resetView() {
+            lon = 0;
+            lat = 0;
+            distance = 50;
+        }
+        
+        // Обработчики событий мыши
+        function onDocumentMouseDown(event) {
+            event.preventDefault();
+            isUserInteracting = true;
+            onPointerDownPointerX = event.clientX;
+            onPointerDownPointerY = event.clientY;
+            onPointerDownLon = lon;
+            onPointerDownLat = lat;
+        }
+        
+        function onDocumentMouseMove(event) {
+            if (isUserInteracting === true) {
+                lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
+                lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
+            }
+        }
+        
+        function onDocumentMouseUp() {
+            isUserInteracting = false;
+        }
+        
+        function onDocumentMouseWheel(event) {
+            event.preventDefault();
+            distance += event.deltaY * 0.05;
+            distance = Math.max(10, Math.min(100, distance));
+        }
+        
+        // Обработчик изменения размера окна
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Анимация
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+        }
+        
+        function update() {
+            lat = Math.max(-85, Math.min(85, lat));
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+            
+            // Устанавливаем позицию камеры в центр и смотрим в нужном направлении
+            const x = 500 * Math.sin(phi) * Math.cos(theta);
+            const y = 500 * Math.cos(phi);
+            const z = 500 * Math.sin(phi) * Math.sin(theta);
+            
+            camera.position.set(0, 0, 0);
+            camera.lookAt(x, y, z);
+            
+            camera.fov = distance;
+            camera.updateProjectionMatrix();
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Запуск при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

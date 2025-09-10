@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Панорамы</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #container.dragging {
+            cursor: grabbing;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="info">
+        <h3>Тест исправлений панорамы:</h3>
+        <ul>
+            <li>✅ Циклическое вращение (без "откидывания")</li>
+            <li>✅ Правильная реверсия (вниз = смотреть вверх)</li>
+            <li>✅ Ограничение скорости (против бесконечного вращения)</li>
+            <li>🎮 Перетащите мышью для поворота</li>
+            <li>🔍 Колесо мыши для зума</li>
+        </ul>
+    </div>
+    
+    <div id="container"></div>
+
+    <script>
+        // Состояние камеры
+        const cameraState = {
+            phi: 0,
+            theta: Math.PI / 2,
+            targetPhi: 0,
+            targetTheta: Math.PI / 2,
+            fov: 75,
+            targetFov: 75
+        };
+
+        // Состояние мыши
+        const mouseState = {
+            isDown: false,
+            startX: 0,
+            startY: 0,
+            previousX: 0,
+            previousY: 0,
+            velocityX: 0,
+            velocityY: 0
+        };
+
+        // Параметры
+        const dampingFactor = 0.08; // Уменьшенное затухание для более плавного движения
+        const mouseSensitivity = 0.003;
+        const minTheta = 0.1;
+        const maxTheta = Math.PI - 0.1;
+
+        // Инициализация Three.js
+        const container = document.getElementById('container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // Создание сферы с тестовой текстурой
+        const geometry = new THREE.SphereGeometry(500, 64, 32);
+        geometry.scale(-1, 1, 1);
+        
+        // Создание простой градиентной текстуры для теста
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        
+        // Градиент с разметкой
+        const gradient = ctx.createLinearGradient(0, 0, 512, 256);
+        gradient.addColorStop(0, '#ff6b1a');
+        gradient.addColorStop(0.5, '#663399');
+        gradient.addColorStop(1, '#2b1d52');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 256);
+        
+        // Добавляем сетку для ориентации
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i <= 512; i += 64) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, 256);
+            ctx.stroke();
+        }
+        for (let i = 0; i <= 256; i += 32) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(512, i);
+            ctx.stroke();
+        }
+        
+        // Добавляем текст для ориентации
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Arial';
+        ctx.fillText('СЕВЕР', 256, 30);
+        ctx.fillText('ЮГ', 256, 240);
+        ctx.fillText('ЗАПАД', 50, 130);
+        ctx.fillText('ВОСТОК', 400, 130);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+
+        // Функция обновления камеры (улучшенная версия)
+        function updateCamera() {
+            // Применяем инерцию, если мышь/тач не активны
+            if (!mouseState.isDown) {
+                // Применяем скорость с затуханием для плавного замедления
+                cameraState.targetPhi -= mouseState.velocityX * mouseSensitivity;
+                cameraState.targetTheta -= mouseState.velocityY * mouseSensitivity; // Инвертированное вертикальное движение
+
+                // Применяем затухание с более естественным ощущением
+                mouseState.velocityX *= 0.85; // Уменьшенное затухание для более плавного ощущения
+                mouseState.velocityY *= 0.85; // Уменьшенное затухание для более плавного ощущения
+
+                // Останавливаем инерцию, если скорость очень мала
+                if (Math.abs(mouseState.velocityX) < 0.1 && Math.abs(mouseState.velocityY) < 0.1) {
+                    mouseState.velocityX = 0;
+                    mouseState.velocityY = 0;
+                }
+            }
+
+            // Обработка циклического вращения по горизонтали
+            let deltaPhi = cameraState.targetPhi - cameraState.phi;
+            
+            // Нормализуем дельту для кратчайшего пути вращения
+            if (deltaPhi > Math.PI) {
+                deltaPhi -= 2 * Math.PI;
+            } else if (deltaPhi < -Math.PI) {
+                deltaPhi += 2 * Math.PI;
+            }
+            
+            // Ограничиваем максимальную скорость изменения угла для предотвращения бесконечного вращения
+            const maxDeltaPhi = 0.3; // Уменьшенная максимальная скорость для более плавного управления
+            deltaPhi = Math.max(-maxDeltaPhi, Math.min(maxDeltaPhi, deltaPhi));
+            
+            cameraState.phi += deltaPhi * dampingFactor;
+            cameraState.theta += (cameraState.targetTheta - cameraState.theta) * dampingFactor;
+            cameraState.fov += (cameraState.targetFov - cameraState.fov) * dampingFactor;
+
+            // Нормализуем phi в диапазоне [-PI, PI] для непрерывного вращения
+            if (cameraState.phi > Math.PI) {
+                cameraState.phi -= 2 * Math.PI;
+            } else if (cameraState.phi < -Math.PI) {
+                cameraState.phi += 2 * Math.PI;
+            }
+            
+            // Также нормализуем targetPhi
+            if (cameraState.targetPhi > Math.PI) {
+                cameraState.targetPhi -= 2 * Math.PI;
+            } else if (cameraState.targetPhi < -Math.PI) {
+                cameraState.targetPhi += 2 * Math.PI;
+            }
+
+            // Преобразование сферических координат в декартовы для направления камеры
+            const x = Math.sin(cameraState.theta) * Math.cos(cameraState.phi);
+            const y = Math.cos(cameraState.theta);
+            const z = Math.sin(cameraState.theta) * Math.sin(cameraState.phi);
+
+            camera.lookAt(x, y, z);
+            camera.fov = cameraState.fov;
+            camera.updateProjectionMatrix();
+        }
+
+        // Обработчики мыши (улучшенные)
+        function handleMouseDown(event) {
+            event.preventDefault();
+            mouseState.isDown = true;
+            mouseState.startX = event.clientX;
+            mouseState.startY = event.clientY;
+            mouseState.previousX = event.clientX;
+            mouseState.previousY = event.clientY;
+            // Сбрасываем скорость при нажатии для немедленного отклика
+            mouseState.velocityX = 0;
+            mouseState.velocityY = 0;
+            container.classList.add('dragging');
+        }
+
+        function handleMouseMove(event) {
+            if (!mouseState.isDown) return;
+            event.preventDefault();
+            
+            const deltaX = event.clientX - mouseState.previousX;
+            const deltaY = event.clientY - mouseState.previousY;
+            
+            // Горизонтальное движение (влево-вправо) с повышенной чувствительностью
+            cameraState.targetPhi -= deltaX * mouseSensitivity;
+            
+            // Вертикальное движение (вверх-вниз) - инвертированное движение (как в Google Street View)
+            // Когда тянем мышь вниз (deltaY > 0), камера смотрит вверх (theta уменьшается)
+            // Когда тянем мышь вверх (deltaY < 0), камера смотрит вниз (theta увеличивается)
+            cameraState.targetTheta -= deltaY * mouseSensitivity;
+            
+            // Вычисляем скорость для инерции
+            mouseState.velocityX = deltaX;
+            mouseState.velocityY = deltaY;
+            
+            // Ограничиваем вертикальный угол
+            cameraState.targetTheta = Math.max(minTheta, Math.min(maxTheta, cameraState.targetTheta));
+            
+            mouseState.previousX = event.clientX;
+            mouseState.previousY = event.clientY;
+        }
+
+        function handleMouseUp() {
+            mouseState.isDown = false;
+            container.classList.remove('dragging');
+            // Инерция будет применяться в цикле анимации
+        }
+
+        function handleWheel(event) {
+            event.preventDefault();
+            const delta = event.deltaY > 0 ? 5 : -5;
+            cameraState.targetFov = Math.max(20, Math.min(120, cameraState.targetFov + delta));
+        }
+
+        // Добавляем обработчики событий
+        container.addEventListener('mousedown', handleMouseDown);
+        container.addEventListener('mousemove', handleMouseMove);
+        container.addEventListener('mouseup', handleMouseUp);
+        container.addEventListener('mouseleave', handleMouseUp);
+        container.addEventListener('wheel', handleWheel, { passive: false });
+
+        // Обработка изменения размера окна
+        function handleResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', handleResize);
+
+        // Анимационный цикл
+        function animate() {
+            updateCamera();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

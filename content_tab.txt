@@ -1,0 +1,178 @@
+        {/* Content Tab */}
+        {activeTab === 'content' && (
+          <div className="space-y-6">
+            {/* Content Navigation */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">Модерация контента</h3>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setContentTab('panoramas')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      contentTab === 'panoramas'
+                        ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                        : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                    }`}
+                  >
+                    <PhotoIcon className="h-4 w-4 mr-2 inline" />
+                    Панорамы ({panoramas.length})
+                  </button>
+                  <button
+                    onClick={() => setContentTab('tours')}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      contentTab === 'tours'
+                        ? 'bg-primary-100 text-primary-800 border border-primary-200'
+                        : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                    }`}
+                  >
+                    <ChartBarIcon className="h-4 w-4 mr-2 inline" />
+                    Туры ({tours.length})
+                  </button>
+                </div>
+              </div>
+              
+              {/* Search */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={`Поиск ${contentTab === 'panoramas' ? 'панорам' : 'туров'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+            </div>
+
+            {/* Content Table */}
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                {contentTab === 'panoramas' ? (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Панорама
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Автор
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Дата загрузки
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Статус
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Действия
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {panoramas.length > 0 ? panoramas.map((panorama) => (
+                        <tr key={panorama.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{panorama.title}</div>
+                              <div className="text-sm text-gray-500">ID: {panorama.id}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{panorama.username}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(panorama.upload_date).toLocaleDateString('ru-RU')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              panorama.is_public ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {panorama.is_public ? 'Публичная' : 'Приватная'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => handleDeletePanorama(panorama.id, panorama.title)}
+                              className="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors bg-red-100 text-red-800 border border-red-200 hover:bg-red-200"
+                            >
+                              <TrashIcon className="h-4 w-4 mr-1" />
+                              Удалить
+                            </button>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                            Панорамы не найдены
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Тур
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Автор
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Дата создания
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Панорам
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Действия
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {tours.length > 0 ? tours.map((tour) => (
+                        <tr key={tour.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{tour.title}</div>
+                              <div className="text-sm text-gray-500">ID: {tour.id}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{tour.username}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(tour.created_at).toLocaleDateString('ru-RU')}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{tour.panoramas_count || 0}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => adminAPI.deleteTour(tour.id)}
+                              className="inline-flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors bg-red-100 text-red-800 border border-red-200 hover:bg-red-200"
+                            >
+                              <TrashIcon className="h-4 w-4 mr-1" />
+                              Удалить
+                            </button>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                            Туры не найдены
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}

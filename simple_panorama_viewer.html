@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простой панорамный вьюер</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #container.dragging {
+            cursor: grabbing;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+        }
+        button {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2d3748;
+        }
+        input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #718096;
+            background: #2d3748;
+            color: #e2e8f0;
+            margin: 5px;
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h3>Простой панорамный вьюер</h3>
+        <p>Введите ID панорамы для просмотра</p>
+        <input type="number" id="panorama-id" placeholder="ID панорамы" value="1">
+        <button onclick="loadPanorama()">Загрузить панораму</button>
+    </div>
+    
+    <div id="info" style="display: none;">
+        <h3 id="panorama-title">Панорама</h3>
+        <p id="panorama-description"></p>
+        <p>Просмотров: <span id="view-count">0</span></p>
+    </div>
+    
+    <div id="controls" style="display: none;">
+        <button onclick="zoomIn()">+</button>
+        <button onclick="zoomOut()">-</button>
+        <button onclick="resetView()">Сброс</button>
+        <br>
+        <button onclick="toggleAutoRotate()" id="auto-rotate-btn">▶️ Авто</button>
+    </div>
+    
+    <div id="container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Глобальные переменные
+        let scene, camera, renderer, sphere;
+        let isUserInteracting = false;
+        let onPointerDownPointerX, onPointerDownPointerY;
+        let onPointerDownLon, onPointerDownLat;
+        let lon = 0, lat = 0;
+        let phi = 0, theta = 0;
+        let distance = 75;
+        let autoRotate = false;
+        let panoramaData = null;
+        
+        // Инициализация Three.js
+        function init() {
+            const container = document.getElementById('container');
+            
+            // Создание сцены
+            scene = new THREE.Scene();
+            
+            // Создание камеры
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1100);
+            
+            // Создание рендерера
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Создание сферы
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            geometry.scale(-1, 1, 1);
+            
+            // Создание материала (серый как fallback)
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x333333,
+                side: THREE.BackSide
+            });
+            
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            
+            // Обработчики событий
+            container.addEventListener('mousedown', onDocumentMouseDown, false);
+            container.addEventListener('mousemove', onDocumentMouseMove, false);
+            container.addEventListener('mouseup', onDocumentMouseUp, false);
+            container.addEventListener('mouseleave', onDocumentMouseUp, false);
+            container.addEventListener('wheel', onDocumentMouseWheel, false);
+            
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Запуск анимации
+            animate();
+        }
+        
+        // Загрузка панорамы
+        async function loadPanorama() {
+            const panoramaId = document.getElementById('panorama-id').value;
+            
+            if (!panoramaId) {
+                alert('Пожалуйста, введите ID панорамы');
+                return;
+            }
+            
+            document.getElementById('loading').innerHTML = '<p>Загрузка информации о панораме...</p>';
+            
+            try {
+                // Получение информации о панораме
+                const infoResponse = await fetch(`/api/panoramas/${panoramaId}`);
+                if (!infoResponse.ok) {
+                    throw new Error(`Ошибка получения информации: ${infoResponse.status}`);
+                }
+                
+                const infoData = await infoResponse.json();
+                panoramaData = infoData.panorama;
+                
+                // Обновление информации
+                document.getElementById('panorama-title').textContent = panoramaData.title;
+                document.getElementById('panorama-description').textContent = panoramaData.description || '';
+                document.getElementById('view-count').textContent = panoramaData.view_count;
+                
+                document.getElementById('loading').innerHTML = '<p>Загрузка изображения панорамы...</p>';
+                
+                // Загрузка текстуры
+                const textureLoader = new THREE.TextureLoader();
+                const imageUrl = `/api/panoramas/${panoramaId}/image`;
+                
+                textureLoader.load(
+                    imageUrl,
+                    function(texture) {
+                        // Успешная загрузка
+                        if (sphere) {
+                            const material = new THREE.MeshBasicMaterial({
+                                map: texture,
+                                side: THREE.BackSide
+                            });
+                            sphere.material.dispose();
+                            sphere.material = material;
+                        }
+                        
+                        // Скрытие загрузчика и показ элементов управления
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('info').style.display = 'block';
+                        document.getElementById('controls').style.display = 'block';
+                    },
+                    undefined,
+                    function(error) {
+                        // Ошибка загрузки
+                        console.error('Ошибка загрузки текстуры:', error);
+                        document.getElementById('loading').innerHTML = `
+                            <p style="color: red;">❌ Ошибка загрузки изображения</p>
+                            <p>${error.message}</p>
+                            <button onclick="document.getElementById('loading').style.display='none'">Закрыть</button>
+                        `;
+                    }
+                );
+            } catch (error) {
+                console.error('Ошибка загрузки панорамы:', error);
+                document.getElementById('loading').innerHTML = `
+                    <p style="color: red;">❌ Ошибка загрузки панорамы</p>
+                    <p>${error.message}</p>
+                    <button onclick="document.getElementById('loading').style.display='none'">Закрыть</button>
+                `;
+            }
+        }
+        
+        // Управление зумом
+        function zoomIn() {
+            distance = Math.max(20, distance - 10);
+        }
+        
+        function zoomOut() {
+            distance = Math.min(120, distance + 10);
+        }
+        
+        function resetView() {
+            lon = 0;
+            lat = 0;
+            distance = 75;
+        }
+        
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+            const btn = document.getElementById('auto-rotate-btn');
+            btn.textContent = autoRotate ? '⏸️ Стоп' : '▶️ Авто';
+        }
+        
+        // Обработчики событий мыши
+        function onDocumentMouseDown(event) {
+            event.preventDefault();
+            isUserInteracting = true;
+            onPointerDownPointerX = event.clientX;
+            onPointerDownPointerY = event.clientY;
+            onPointerDownLon = lon;
+            onPointerDownLat = lat;
+            document.getElementById('container').classList.add('dragging');
+        }
+        
+        function onDocumentMouseMove(event) {
+            if (isUserInteracting === true) {
+                lon = (onPointerDownPointerX - event.clientX) * 0.1 + onPointerDownLon;
+                lat = (event.clientY - onPointerDownPointerY) * 0.1 + onPointerDownLat;
+            }
+        }
+        
+        function onDocumentMouseUp() {
+            isUserInteracting = false;
+            document.getElementById('container').classList.remove('dragging');
+        }
+        
+        function onDocumentMouseWheel(event) {
+            event.preventDefault();
+            distance += event.deltaY * 0.05;
+            distance = Math.max(20, Math.min(120, distance));
+        }
+        
+        // Обработчик изменения размера окна
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Анимационный цикл
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+        }
+        
+        function update() {
+            if (autoRotate) {
+                lon += 0.5;
+            }
+            
+            lat = Math.max(-85, Math.min(85, lat));
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+            
+            // Позиционирование камеры
+            camera.position.x = distance * Math.sin(phi) * Math.cos(theta);
+            camera.position.y = distance * Math.cos(phi);
+            camera.position.z = distance * Math.sin(phi) * Math.sin(theta);
+            
+            camera.lookAt(scene.position);
+            camera.fov = distance;
+            camera.updateProjectionMatrix();
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Пользовательские стили для Panorama 360 App */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  color: #1E293B;
+  background-color: #F4F4F8;
+}
+
+/* Фирменные градиенты */
+.sunset-gradient {
+  background: linear-gradient(180deg, #FF6B1A 0%, #FF3C00 100%);
+}
+
+.purple-mountains-gradient {
+  background: linear-gradient(180deg, #663399 0%, #2B1D52 100%);
+}
+
+.sunrise-gradient {
+  background: linear-gradient(135deg, #FFD36B 0%, #FF6B1A 50%, #FF3C00 100%);
+}
+
+.deep-space-gradient {
+  background: linear-gradient(135deg, #2B1D52 0%, #663399 50%, #9D4EDD 100%);
+}
+
+/* Кастомные компоненты */
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-b from-primary-500 to-sunset-red text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/50;
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent border-2 border-primary-500 text-primary-500 font-semibold py-3 px-6 rounded-2xl transition-all duration-300 hover:bg-primary-500 hover:text-white hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-primary-500/50;
+  }
+  
+  .btn-purple {
+    @apply bg-gradient-to-b from-purple-500 to-purple-900 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-purple-500/50;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary-500/30 focus:border-primary-500 transition-all duration-300 bg-white;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden;
+  }
+  
+  .card-purple {
+    @apply bg-gradient-to-br from-purple-600 to-purple-900 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden text-white;
+  }
+  
+  .panorama-container {
+    @apply relative w-full h-full bg-gradient-to-br from-purple-900 to-accent-blue rounded-2xl overflow-hidden;
+  }
+  
+  .loading-spinner {
+    @apply animate-spin rounded-full border-4 border-accent-gray border-t-primary-500;
+  }
+  
+  .navbar {
+    @apply bg-white/90 backdrop-blur-md border-b border-gray-200/50 shadow-sm;
+  }
+  
+  .hero-section {
+    @apply relative overflow-hidden;
+  }
+  
+  .footer {
+    @apply bg-purple-900 text-white;
+  }
+}
+
+/* Утилиты */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .neumorphism {
+    box-shadow: 8px 8px 16px rgba(43, 29, 82, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.7);
+  }
+}
+
+/* Утилиты */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Анимации для панорам */
+.panorama-hotspot {
+  @apply absolute w-6 h-6 bg-primary-500 rounded-full cursor-pointer transform -translate-x-1/2 -translate-y-1/2;
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 0 0 rgba(255, 107, 26, 0.4);
+}
+
+.panorama-hotspot:hover {
+  @apply scale-110;
+}
+
+.panorama-hotspot::before {
+  content: '';
+  @apply absolute inset-0 rounded-full bg-primary-500;
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Красивые анимации для главной страницы */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Градиентный текст */
+.gradient-text {
+  background: linear-gradient(45deg, #FFD36B 0%, #FF6B1A 25%, #FF3C00 50%, #663399 75%, #2B1D52 100%);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Эффект свечения для кнопок */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 107, 26, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 107, 26, 0.6), 0 0 60px rgba(255, 107, 26, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 107, 26, 0.3);
+  }
+}
+
+.glow-effect {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
+  }
+  
+  .panorama-container {
+    @apply h-64;
+  }
+}
+
+/* Темная тема (для будущего использования) */
+@media (prefers-color-scheme: dark) {
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+  
+  .dark .card {
+    @apply bg-gray-800 text-gray-100;
+  }
+  
+  .dark .input-field {
+    @apply bg-gray-700 border-gray-600 text-gray-100;
+  }
+}

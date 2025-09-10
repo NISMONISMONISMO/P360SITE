@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Image Loading</title>
+</head>
+<body>
+    <h1>Testing Panorama Image Loading</h1>
+    <div id="status">Testing...</div>
+    <img id="test-image" style="display: none; max-width: 500px; margin-top: 20px;" />
+    
+    <script>
+        // Test image loading
+        const img = new Image();
+        img.onload = function() {
+            document.getElementById('status').innerHTML = 
+                '<p style="color: green;">✅ Image Loading Successful</p>';
+            document.getElementById('test-image').src = this.src;
+            document.getElementById('test-image').style.display = 'block';
+        };
+        img.onerror = function() {
+            document.getElementById('status').innerHTML = 
+                '<p style="color: red;">❌ Image Loading Failed</p>';
+        };
+        // Replace '1' with a valid panorama ID from your database
+        img.src = '/api/panoramas/1/image';
+    </script>
+</body>
+</html>

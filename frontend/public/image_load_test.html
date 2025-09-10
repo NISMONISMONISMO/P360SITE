@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Load Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffe8e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            background: #e8fde9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        #image-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Load Test</h1>
+        <p>This test checks if panorama images can be loaded directly.</p>
+        
+        <div>
+            <label>Panorama ID: <input type="number" id="panorama-id" value="1" min="1"></label>
+            <button onclick="testImageLoad()">Load Image</button>
+            <button onclick="testImageInfo()">Get Info</button>
+        </div>
+        
+        <div id="results"></div>
+        <div id="image-container"></div>
+    </div>
+
+    <script>
+        async function testImageInfo() {
+            const resultDiv = document.getElementById('results');
+            const imageContainer = document.getElementById('image-container');
+            const panoramaId = document.getElementById('panorama-id').value;
+            
+            resultDiv.innerHTML = '<div class="result">Getting info...</div>';
+            imageContainer.innerHTML = '';
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Enter panorama ID</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/panoramas/${panoramaId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Panorama Info Retrieved!</h3>
+                            <p><strong>ID:</strong> ${data.panorama.id}</p>
+                            <p><strong>Title:</strong> ${data.panorama.title}</p>
+                            <p><strong>Description:</strong> ${data.panorama.description || 'No description'}</p>
+                            <p><strong>Public:</strong> ${data.panorama.is_public ? 'Yes' : 'No'}</p>
+                            <p><strong>Views:</strong> ${data.panorama.view_count}</p>
+                            <p><strong>Dimensions:</strong> ${data.panorama.width}x${data.panorama.height}</p>
+                            <p><strong>Upload Date:</strong> ${new Date(data.panorama.upload_date).toLocaleString()}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Error Getting Info</h3>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                            <p>Response: ${JSON.stringify(data)}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Network Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testImageLoad() {
+            const resultDiv = document.getElementById('results');
+            const imageContainer = document.getElementById('image-container');
+            const panoramaId = document.getElementById('panorama-id').value;
+            
+            resultDiv.innerHTML = '<div class="result">Loading image...</div>';
+            imageContainer.innerHTML = '';
+            
+            if (!panoramaId) {
+                resultDiv.innerHTML = '<div class="error">Enter panorama ID</div>';
+                return;
+            }
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`/api/panoramas/${panoramaId}/image`);
+                const endTime = Date.now();
+                const loadTime = endTime - startTime;
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    const contentType = response.headers.get('content-type');
+                    const contentLength = response.headers.get('content-length');
+                    
+                    imageContainer.innerHTML = `
+                        <h3>Panorama Image:</h3>
+                        <img src="${imageUrl}" alt="Panorama ${panoramaId}" onload="URL.revokeObjectURL('${imageUrl}')">
+                    `;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Image Loaded Successfully!</h3>
+                            <p><strong>Content Type:</strong> ${contentType || 'Not specified'}</p>
+                            <p><strong>Size:</strong> ${contentLength ? Math.round(contentLength/1024) + ' KB' : 'Not specified'}</p>
+                            <p><strong>Load Time:</strong> ${loadTime} ms</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Error Loading Image</h3>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                            <p>URL: /api/panoramas/${panoramaId}/image</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Network Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
